@@ -1,0 +1,101 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: booking-service
+
+  datasource:
+    url: jdbc:h2:mem:bookingdb
+    driverClassName: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: false
+    loadbalancer:
+      cache:
+        enabled: true
+
+eureka:
+  client:
+    fetch-registry: true
+    register-with-eureka: true
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+
+
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 2000
+        readTimeout: 3000
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers,retries
+  endpoint:
+    circuitbreakers:
+      enabled: true
+    retries:
+      enabled: true
+    metrics:
+      enabled: true
+  health:
+    show-details: always
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      externalCb:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 5
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 5s
+        permitted-number-of-calls-in-half-open-state: 1
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:
+          - feign.FeignException
+          - feign.RetryableException
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+        ignore-exceptions:
+          - org.springframework.web.server.ResponseStatusException
+
+  retry:
+    instances:
+      externalRetry:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - feign.FeignException$ServiceUnavailable
+          - feign.RetryableException
+          - java.io.IOException
+        ignore-exceptions:
+          - org.springframework.web.server.ResponseStatusException
+
+logging:
+  level:
+    org.springframework.cloud.loadbalancer: INFO
+    org.springframework.cloud.openfeign: INFO
+    feign: INFO
+    io.github.resilience4j: INFO
+
