@@ -23,7 +23,7 @@ public class ReservationIntegrationService {
     @CircuitBreaker(name = "externalCb", fallbackMethod = "getUserFallback")
     public UserDTO fetchUserOrThrow(Integer userId) {
         log.info("Poziv users-service-a (Feign) userId="+ userId);
-        return usersClient.getUserById(userId).getBody(); // Feign poziv
+        return usersClient.getUserById(userId);
     }
 
     public UserDTO getUserFallback(Integer userId, Throwable t) {

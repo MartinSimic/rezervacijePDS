@@ -8,13 +8,13 @@ import pmf.bookingService.dto.UserDTO;
 
 import java.util.List;
 
-@FeignClient(name = "user-service")
+@FeignClient(name = "users-service")
 public interface UserClient {
 
     @GetMapping("/users")
     List<UserDTO> getAllUsers();
 
     @GetMapping("/users/{id}")
-    ResponseEntity<UserDTO> getUserById(@PathVariable("id") Integer id);
+    UserDTO getUserById(@PathVariable("id") Integer id);
 
 }

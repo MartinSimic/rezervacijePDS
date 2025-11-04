@@ -16,7 +16,7 @@ import pmf.bookingService.service.ReservationService;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
+
 
 @RestController
 @RequestMapping("/reservations")
@@ -30,34 +30,40 @@ public class ReservationController {
 
     @PostMapping("/reserve")
     public ResponseEntity<?> makeReservation(@RequestBody ReservationDTO reservationDTO) {
-
+        String message = "";
         Integer bookingId = reservationDTO.getBookingId();
         Integer userId    = reservationDTO.getUserId();
 
         if (!bookingRepository.existsById(bookingId)) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Booking ne postoji.");
+            message += "Booking ne postoji.";
+
         }
         if (reservationRepository.existsByUserIdAndBookingId(userId, bookingId)) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("Duplikat rezervacije.");
+            message += "Duplikat rezervacije.";
         }
-        service.fetchUser(userId);
 
-        Booking bookingRef = bookingRepository.getReferenceById(bookingId);
+        if(service.fetchUser(userId) == null) {
+            message += "User sa ID:" + userId + " ne postoji.\n";
+        }
+        else {
 
-        Reservation r = new Reservation();
-        r.setBooking(bookingRef);
-        r.setUserId(userId);
+            Booking bookingRef = bookingRepository.getReferenceById(bookingId);
 
-        reservationRepository.save(r);
+            Reservation r = new Reservation();
+            r.setBooking(bookingRef);
+            r.setUserId(userId);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body("Uspešno dodata rezervacija.");
+            reservationRepository.save(r);
+            message += "Uspešno dodata rezervacija.";
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(message);
+
     }
 
 
     @GetMapping
     public List<CompleteReservationDTO> getAllReseravations() {
         List<Reservation> reservations = reservationRepository.findAllFetchBooking();
-        List<UserDTO> users = service.fetchAllUsers();
         List<CompleteReservationDTO> result = new ArrayList<>(reservations.size());
 
         for (Reservation r : reservations) {
@@ -68,12 +74,12 @@ public class ReservationController {
             dto.setTimeReservation(r.getTimeReservation());
 
             Booking booking = r.getBooking();
-            modelMapper.map(booking, dto);
-            for (UserDTO user : users) {
-                if (Objects.equals(user.getId(), r.getUserId())) {
-                    modelMapper.map(user, dto);; break;
-                }
-            }
+            UserDTO user = service.fetchUser(r.getUserId());
+
+            dto.setDate(booking.getDate());
+            dto.setStartTime(booking.getStartTime());
+            dto.setEndTime(booking.getEndTime());
+            dto.setName(user.getName());
 
             result.add(dto);
         }
@@ -83,24 +89,28 @@ public class ReservationController {
 
     @GetMapping("/{id}/user")
     public List<CompleteReservationDTO> getReservationByUserID(@PathVariable("id") Integer id) {
+        UserDTO user = service.fetchUser(id);
+        if (user == null) { return null; }
         List<Reservation> reservations = reservationRepository.findByUserIDFetchBooking(id);
+        if( reservations.isEmpty() ) { return null; }
 
-        UserDTO userDTO = service.fetchUser(id);
-
-        List<CompleteReservationDTO> complete = new ArrayList<>(reservations.size());
+        List<CompleteReservationDTO> result = new ArrayList<>(reservations.size());
         for (Reservation r : reservations) {
             CompleteReservationDTO dto = new CompleteReservationDTO();
 
             dto.setBookingId(r.getBooking().getId());
-            dto.setUserId(r.getUserId());
+            dto.setUserId(user.getId());
             dto.setTimeReservation(r.getTimeReservation());
 
             Booking booking = r.getBooking();
-            modelMapper.map(booking, dto);
-            modelMapper.map(userDTO, dto);
-            complete.add(dto);
+            dto.setDate(booking.getDate());
+            dto.setStartTime(booking.getStartTime());
+            dto.setEndTime(booking.getEndTime());
+            dto.setName(user.getName());
+
+            result.add(dto);
         }
-        return complete;
+        return result;
     }
 
 }
